@@ -118,6 +118,28 @@
           </div>
           <div class="chart-wrap">
             <div id="priceChart" class="trading-chart" aria-label="Draggable and zoomable candlestick chart"></div>
+            <div class="chart-hud" id="chartHud">
+              <div>
+                <span>Date / Time</span>
+                <strong id="chartTime">--</strong>
+              </div>
+              <div>
+                <span>Open</span>
+                <strong id="chartOpen">--</strong>
+              </div>
+              <div>
+                <span>High</span>
+                <strong id="chartHigh">--</strong>
+              </div>
+              <div>
+                <span>Low</span>
+                <strong id="chartLow">--</strong>
+              </div>
+              <div>
+                <span>Close</span>
+                <strong id="chartClose">--</strong>
+              </div>
+            </div>
             <div class="chart-legend">
               <span><i class="legend-dot candle"></i>Candles</span>
               <span><i class="legend-dot ma20"></i>MA20</span>
@@ -256,6 +278,6 @@
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.468.0/dist/umd/lucide.min.js"></script>
-    <script src="./app.js?v=10"></script>
+    <script src="./app.js?v=13"></script>
   </body>
 </html>

@@ -106,7 +106,12 @@ const el = {
   eventList: document.querySelector("#eventList"),
   marketNewsUpdated: document.querySelector("#marketNewsUpdated"),
   topNewsUpdated: document.querySelector("#topNewsUpdated"),
-  eventUpdated: document.querySelector("#eventUpdated")
+  eventUpdated: document.querySelector("#eventUpdated"),
+  chartTime: document.querySelector("#chartTime"),
+  chartOpen: document.querySelector("#chartOpen"),
+  chartHigh: document.querySelector("#chartHigh"),
+  chartLow: document.querySelector("#chartLow"),
+  chartClose: document.querySelector("#chartClose")
 };
 
 const tradingChart = {
@@ -127,27 +132,44 @@ function initTradingChart() {
   tradingChart.chart = LightweightCharts.createChart(chartNode, {
     autoSize: true,
     layout: {
-      background: { color: "#101415" },
-      textColor: "#9ca8aa",
+      background: { color: "#080d0f" },
+      textColor: "#a8b4b5",
       fontFamily: getComputedStyle(document.documentElement).fontFamily
     },
     grid: {
-      vertLines: { color: "rgba(255,255,255,0.045)" },
-      horzLines: { color: "rgba(255,255,255,0.055)" }
+      vertLines: { color: "rgba(255,255,255,0.04)" },
+      horzLines: { color: "rgba(255,255,255,0.052)" }
     },
     rightPriceScale: {
-      borderColor: "#30363d",
+      borderColor: "#2c363b",
       scaleMargins: { top: 0.08, bottom: 0.24 }
     },
     timeScale: {
-      borderColor: "#30363d",
+      borderColor: "#2c363b",
       timeVisible: true,
-      secondsVisible: false,
+      secondsVisible: true,
       rightOffset: 6,
-      barSpacing: 8
+      barSpacing: 9,
+      tickMarkFormatter: (time) => formatAxisTime(time)
     },
     crosshair: {
-      mode: LightweightCharts.CrosshairMode.Normal
+      mode: LightweightCharts.CrosshairMode.Normal,
+      vertLine: {
+        color: "rgba(95, 201, 221, 0.72)",
+        width: 1,
+        style: LightweightCharts.LineStyle.Solid,
+        labelBackgroundColor: "#14242a"
+      },
+      horzLine: {
+        color: "rgba(95, 201, 221, 0.72)",
+        width: 1,
+        style: LightweightCharts.LineStyle.Solid,
+        labelBackgroundColor: "#14242a"
+      }
+    },
+    localization: {
+      priceFormatter: (price) => formatChartPrice(price),
+      timeFormatter: (time) => formatChartDateTime(time)
     },
     handleScroll: {
       mouseWheel: true,
@@ -191,6 +213,15 @@ function initTradingChart() {
     scaleMargins: { top: 0.8, bottom: 0 }
   });
 
+  tradingChart.chart.subscribeCrosshairMove((param) => {
+    const candle = param?.seriesData?.get(tradingChart.candleSeries);
+    if (candle) {
+      updateChartHud(candle, param.time);
+      return;
+    }
+    updateChartHud(state.chartRows.at(-1));
+  });
+
   const resizeChart = () => {
     const rect = chartNode.getBoundingClientRect();
     if (rect.width > 0 && rect.height > 0) {
@@ -200,6 +231,57 @@ function initTradingChart() {
   new ResizeObserver(resizeChart).observe(chartNode);
   window.addEventListener("resize", resizeChart);
   requestAnimationFrame(resizeChart);
+}
+
+function getPricePrecision(value) {
+  const number = Math.abs(Number(value || 0));
+  if (number >= 1000) return { precision: 2, minMove: 0.01 };
+  if (number >= 100) return { precision: 3, minMove: 0.001 };
+  if (number >= 1) return { precision: 4, minMove: 0.0001 };
+  return { precision: 6, minMove: 0.000001 };
+}
+
+function formatChartPrice(value) {
+  const number = Number(value || 0);
+  const { precision } = getPricePrecision(number);
+  return number.toLocaleString(undefined, {
+    minimumFractionDigits: precision,
+    maximumFractionDigits: precision
+  });
+}
+
+function formatChartDateTime(time) {
+  const unix = typeof time === "number" ? time : time?.timestamp;
+  if (!unix) return "--";
+  return new Date(unix * 1000).toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  });
+}
+
+function formatAxisTime(time) {
+  const unix = typeof time === "number" ? time : time?.timestamp;
+  if (!unix) return "";
+  const date = new Date(unix * 1000);
+  const options = state.interval === "1h"
+    ? { month: "short", day: "numeric", hour: "2-digit" }
+    : { hour: "2-digit", minute: "2-digit" };
+  return date.toLocaleString([], options);
+}
+
+function updateChartHud(candle, explicitTime) {
+  if (!candle) return;
+  const time = explicitTime || Math.floor((candle.time || 0) / 1000);
+  el.chartTime.textContent = formatChartDateTime(time);
+  el.chartOpen.textContent = formatChartPrice(candle.open);
+  el.chartHigh.textContent = formatChartPrice(candle.high);
+  el.chartLow.textContent = formatChartPrice(candle.low);
+  el.chartClose.textContent = formatChartPrice(candle.close);
+  el.chartClose.className = candle.close >= candle.open ? "positive" : "negative";
 }
 
 function formatMoney(value) {
@@ -546,6 +628,8 @@ function renderComparisons() {
 function renderChart() {
   const closes = state.chartRows.map((row) => row.close);
   if (!tradingChart.chart || !state.chartRows.length) return;
+  const lastClose = closes.at(-1) || 0;
+  const priceFormat = getPricePrecision(lastClose);
   const candleData = state.chartRows.map((row) => ({
     time: Math.floor(row.time / 1000),
     open: row.open,
@@ -565,10 +649,32 @@ function renderChart() {
     color: row.close >= row.open ? "rgba(79, 209, 139, 0.28)" : "rgba(255, 104, 104, 0.28)"
   }));
 
+  tradingChart.candleSeries.applyOptions({
+    priceFormat: {
+      type: "price",
+      precision: priceFormat.precision,
+      minMove: priceFormat.minMove
+    }
+  });
+  tradingChart.ma20Series.applyOptions({
+    priceFormat: {
+      type: "price",
+      precision: priceFormat.precision,
+      minMove: priceFormat.minMove
+    }
+  });
+  tradingChart.ma50Series.applyOptions({
+    priceFormat: {
+      type: "price",
+      precision: priceFormat.precision,
+      minMove: priceFormat.minMove
+    }
+  });
   tradingChart.candleSeries.setData(candleData);
   tradingChart.ma20Series.setData(ma20);
   tradingChart.ma50Series.setData(ma50);
   tradingChart.volumeSeries.setData(volumeData);
+  updateChartHud(state.chartRows.at(-1));
   const viewKey = `${state.selectedSymbol}-${state.interval}`;
   if (state.chartViewKey !== viewKey) {
     tradingChart.chart.timeScale().fitContent();
