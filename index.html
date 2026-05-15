@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Crypto Signal Deck</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://api.binance.com">
+    <link rel="preconnect" href="https://min-api.cryptocompare.com">
+    <link rel="stylesheet" href="./styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">AI-assisted crypto operations</p>
+          <h1>Crypto Signal Deck</h1>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-button" id="refreshButton" title="Refresh now" aria-label="Refresh now">
+            <span data-icon="refresh-cw" data-fallback="R"></span>
+          </button>
+          <button class="icon-button" id="pauseButton" title="Pause live updates" aria-label="Pause live updates">
+            <span data-icon="pause" data-fallback="||"></span>
+          </button>
+          <div class="status-pill">
+            <span class="live-dot"></span>
+            <span id="refreshStatus">Starting</span>
+          </div>
+        </div>
+      </header>
+
+      <section class="notice">
+        <strong>Signal dashboard, not financial advice.</strong>
+        The app turns live market data, patterns, news, and risk controls into suggestions. Crypto is volatile, so confirm every trade yourself and never risk money you cannot afford to lose.
+      </section>
+
+      <section class="metric-grid" aria-label="Market overview">
+        <article class="metric-card">
+          <span class="metric-label">Total tracked volume</span>
+          <strong id="totalVolume">$0</strong>
+          <small id="volumeLeader">Waiting for market data</small>
+        </article>
+        <article class="metric-card">
+          <span class="metric-label">Strongest 24h move</span>
+          <strong id="topMover">--</strong>
+          <small id="topMoverDetail">No ticker yet</small>
+        </article>
+        <article class="metric-card">
+          <span class="metric-label">Spike monitor</span>
+          <strong id="spikeCount">0 active</strong>
+          <small id="spikeDetail">5-second scan window</small>
+        </article>
+        <article class="metric-card">
+          <span class="metric-label">News sentiment</span>
+          <strong id="newsSentiment">Neutral</strong>
+          <small id="newsSentimentDetail">Latest headlines</small>
+        </article>
+      </section>
+
+      <section class="comparison-grid dashboard-section" aria-label="Comparative market dashboards">
+        <article class="insight-panel">
+          <div class="panel-heading">
+            <h2>Signal Leaderboard</h2>
+            <span id="leaderboardUpdated">Live</span>
+          </div>
+          <div id="leaderboardList" class="rank-list"></div>
+        </article>
+
+        <article class="insight-panel">
+          <div class="panel-heading">
+            <h2>Relative Strength</h2>
+            <span>24h</span>
+          </div>
+          <div id="strengthMatrix" class="matrix-list"></div>
+        </article>
+
+        <article class="insight-panel">
+          <div class="panel-heading">
+            <h2>Risk Heatmap</h2>
+            <span>Range + volume</span>
+          </div>
+          <div id="riskHeatmap" class="heatmap"></div>
+        </article>
+
+        <article class="insight-panel">
+          <div class="panel-heading">
+            <h2>Portfolio Mix</h2>
+            <span id="portfolioMode">Adaptive</span>
+          </div>
+          <div id="portfolioMix" class="allocation-list"></div>
+        </article>
+      </section>
+
+      <section class="workspace dashboard-section">
+        <aside class="asset-panel" aria-label="Major cryptocurrencies">
+          <div class="panel-heading">
+            <h2>Major Coins</h2>
+            <span id="assetCount">0</span>
+          </div>
+          <div id="assetList" class="asset-list"></div>
+        </aside>
+
+        <section class="chart-panel">
+          <div class="chart-header">
+            <div>
+              <p class="eyebrow" id="selectedPair">BTCUSDT</p>
+              <h2 id="selectedName">Bitcoin</h2>
+            </div>
+            <div class="chart-controls" role="group" aria-label="Chart interval">
+              <button class="segmented" data-interval="1m">1m</button>
+              <button class="segmented active" data-interval="5m">5m</button>
+              <button class="segmented" data-interval="15m">15m</button>
+              <button class="segmented" data-interval="1h">1h</button>
+              <button class="segmented" id="resetChart">Reset</button>
+            </div>
+          </div>
+          <div class="chart-wrap">
+            <div id="priceChart" class="trading-chart" aria-label="Draggable and zoomable candlestick chart"></div>
+            <div class="chart-legend">
+              <span><i class="legend-dot candle"></i>Candles</span>
+              <span><i class="legend-dot ma20"></i>MA20</span>
+              <span><i class="legend-dot ma50"></i>MA50</span>
+              <span><i class="legend-dot volume"></i>Volume</span>
+            </div>
+          </div>
+          <div class="signal-strip">
+            <div>
+              <span>Decision score</span>
+              <strong id="decisionScore">--</strong>
+            </div>
+            <div>
+              <span>Suggested action</span>
+              <strong id="tradeAction">Waiting</strong>
+            </div>
+            <div>
+              <span>Risk ratio</span>
+              <strong id="riskRatio">--</strong>
+            </div>
+            <div>
+              <span>Exit trigger</span>
+              <strong id="exitTrigger">--</strong>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="market-news-grid dashboard-section" aria-label="Market moving news and events">
+        <article class="insight-panel market-summary-panel">
+          <div class="panel-heading">
+            <h2>Market News Radar</h2>
+            <span id="marketNewsUpdated">Live scan</span>
+          </div>
+          <div id="impactSummary" class="impact-summary"></div>
+        </article>
+
+        <article class="insight-panel">
+          <div class="panel-heading">
+            <h2>Top Live News</h2>
+            <span id="topNewsUpdated">Headlines</span>
+          </div>
+          <div id="topNewsList" class="news-list compact-news"></div>
+        </article>
+
+        <article class="insight-panel">
+          <div class="panel-heading">
+            <h2>Events & Conferences</h2>
+            <span id="eventUpdated">Upcoming</span>
+          </div>
+          <div id="eventList" class="event-list"></div>
+        </article>
+      </section>
+
+      <section class="insight-grid dashboard-section">
+        <article class="insight-panel">
+          <div class="panel-heading">
+            <h2>AI Decision Engine</h2>
+            <span id="confidenceTag">--</span>
+          </div>
+          <div id="strategyCard" class="strategy-card"></div>
+        </article>
+
+        <article class="insight-panel">
+          <div class="panel-heading">
+            <h2>Pattern Scanner</h2>
+            <span id="patternAge">Live</span>
+          </div>
+          <div id="patternList" class="stack-list"></div>
+        </article>
+
+        <article class="insight-panel">
+          <div class="panel-heading">
+            <h2>Risk/Reward Tool</h2>
+            <span id="rrBadge">--</span>
+          </div>
+          <form id="rrForm" class="rr-form">
+            <label>
+              <span>Entry</span>
+              <input id="rrEntry" type="text" inputmode="decimal" placeholder="Entry">
+            </label>
+            <label>
+              <span>Stop loss</span>
+              <input id="rrStop" type="text" inputmode="decimal" placeholder="Stop">
+            </label>
+            <label>
+              <span>Take profit</span>
+              <input id="rrTarget" type="text" inputmode="decimal" placeholder="Target">
+            </label>
+            <label>
+              <span>Target R</span>
+              <input id="rrMultiple" type="text" inputmode="decimal" value="2">
+            </label>
+            <label>
+              <span>Account</span>
+              <input id="rrAccount" type="text" inputmode="decimal" value="10000">
+            </label>
+            <label>
+              <span>Risk %</span>
+              <input id="rrRisk" type="text" inputmode="decimal" value="1">
+            </label>
+            <div class="rr-actions">
+              <button type="button" class="text-button" id="useSignalLevels">Use signal</button>
+              <button type="button" class="text-button" id="setTargetFromRatio">Set target</button>
+              <button type="button" class="text-button" id="setStopFromRatio">Set stop</button>
+            </div>
+          </form>
+          <div id="rrOutput" class="rr-output"></div>
+        </article>
+
+        <article class="insight-panel">
+          <div class="panel-heading">
+            <h2>Alerts</h2>
+            <button class="text-button" id="clearAlerts">Clear</button>
+          </div>
+          <form id="alertForm" class="alert-form">
+            <select id="alertSymbol" aria-label="Alert coin"></select>
+            <select id="alertDirection" aria-label="Alert direction">
+              <option value="above">Above</option>
+              <option value="below">Below</option>
+            </select>
+            <input id="alertPrice" type="text" inputmode="decimal" placeholder="Price" aria-label="Alert price">
+            <button type="submit" class="primary-button">Add</button>
+          </form>
+          <div id="alertList" class="stack-list"></div>
+        </article>
+
+        <article class="insight-panel">
+          <div class="panel-heading">
+            <h2>News Impact</h2>
+            <span id="newsUpdated">--</span>
+          </div>
+          <div id="newsList" class="news-list"></div>
+        </article>
+      </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+    <script src="./app.js?v=10"></script>
+  </body>
+</html>
